@@ -302,3 +302,24 @@ impl CPU {
         }
     }
 }
+
+// Implementations to deal with the interaction with the frontend
+impl CPU {
+    // Send the screen to the frontend
+    pub fn get_display(&self) -> &[bool] {
+        &self.screen
+    }
+
+    // Handle key-presses and store them in the CPU
+    // The frontend would map the actual key-presses to the CPU keys
+    pub fn keypress(&mut self, idx: usize, pressed: bool) {
+        self.keys[idx] = pressed;
+    }
+
+    // Copy the contents sent to the RAM of the CPU
+    pub fn load(&mut self, data: &[u8]) {
+        let start = START_ADDR as usize;
+        let end = (START_ADDR as usize) + data.len();
+        self.ram[start..end].copy_from_slice(data);
+    }
+}
