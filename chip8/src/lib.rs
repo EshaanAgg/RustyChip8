@@ -142,3 +142,54 @@ impl CPU {
         }
     }
 }
+
+// Deals with all of the OP Code Execution
+impl CPU {
+    // Execute the instruction corresponding to a particular hex code
+    fn execute(&mut self, op: u16) {
+        let d1 = (op & 0xF000) >> 12;
+        let d2 = (op & 0x0F00) >> 8;
+        let d3 = (op & 0x00F0) >> 4;
+        let d4 = op & 0x000F;
+
+        match (d1, d2, d3, d4) {
+            // NOP Instruction
+            // Do nothing, move onto the next instruction
+            (0, 0, 0, 0) => return,
+
+            // CLS Instruction
+            // Used to clear the screen, and set all the pixels to 0
+            (0, 0, 0xE, 0) => {
+                self.screen = [false; SCREEN_WIDTH * SCREEN_HEIGHT];
+            }
+
+            // Return from Subroutine Instruction
+            // When entering a subroutine, we push the address onto the stack and then run the routine's code
+            // To return, we pop that value off our stack and execute from that point again
+            (0, 0, 0xE, 0xE) => {
+                let ret_addr = self.pop();
+                self.pc = ret_addr;
+            }
+
+            // JMP Instruction
+            // Used to jump to a particular instruction
+            // Only the most significant digit needs to be set, the rest are used as operand (specify with instruction to jump to)
+            (1, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.pc = nnn;
+            }
+
+            // CALL Instruction
+            // Used to enter a subroutine
+            // The current value is stored in the stack, and the jump to the adress provided by the last 3 digits is made
+            (2, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.push(self.pc);
+                self.pc = nnn;
+            }
+
+            // Match all the left cases that have not been handled yet
+            (_, _, _, _) => unimplemented!("Unimplemented opcode: {}", op),
+        }
+    }
+}
