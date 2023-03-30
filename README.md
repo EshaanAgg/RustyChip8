@@ -16,3 +16,10 @@ Two special registers which decrease each frame and trigger upon reaching zero a
 
 1. `Delay timer`: Used for time-based game events
 2. `Sound timer`: Used to trigger the audio beep
+
+### About the Project
+
+The project has two main directories.
+
+1. `chip8`: This is a library package with holds all the code for the `CHIP8 Emulator`
+2. `desktop`: This is a binary application package which would be using the `chip8` emulator to run games!
