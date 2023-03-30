@@ -1,3 +1,5 @@
+use rand::Rng;
+
 // SCREEN SIZE CONSTANTS
 pub const SCREEN_WIDTH: usize = 64;
 pub const SCREEN_HEIGHT: usize = 32;
@@ -108,8 +110,7 @@ impl CPU {
     // Simulates one clock cycle
     pub fn tick(&mut self) {
         let op = self.fetch();
-        // Decode
-        // Execute
+        self.execute(op);
     }
 
     // Fetch the instruction from the program (which will be loaded into RAM) at the memory address stored in the Program Counter
@@ -153,50 +154,62 @@ impl CPU {
         let d4 = op & 0x000F;
 
         match (d1, d2, d3, d4) {
-            // 0000
-            // NOP Instruction
-            // Do nothing, move onto the next instruction
+            /*
+               0000
+               NOP Instruction
+               Do nothing, move onto the next instruction
+            */
             (0, 0, 0, 0) => return,
 
-            // 00EO
-            // CLS Instruction
-            // Used to clear the screen, and set all the pixels to 0
+            /*
+                00EO
+                CLS Instruction
+                Used to clear the screen, and set all the pixels to 0
+            */
             (0, 0, 0xE, 0) => {
                 self.screen = [false; SCREEN_WIDTH * SCREEN_HEIGHT];
             }
 
-            // 00EE
-            // Return from Subroutine Instruction
-            // When entering a subroutine, we push the address onto the stack and then run the routine's code
-            // To return, we pop that value off our stack and execute from that point again
+            /*
+                00EE
+                Return from Subroutine Instruction
+                When entering a subroutine, we push the address onto the stack and then run the routine's code
+                To return, we pop that value off our stack and execute from that point again
+            */
             (0, 0, 0xE, 0xE) => {
                 let ret_addr = self.pop();
                 self.pc = ret_addr;
             }
 
-            // 1NNN
-            // JMP Instruction
-            // Used to jump to a particular instruction
-            // Only the most significant digit needs to be set, the rest are used as operand (specify with instruction to jump to)
+            /*
+                1NNN
+                JMP Instruction
+                Used to jump to a particular instruction
+                Only the most significant digit needs to be set, the rest are used as operand (specify with instruction to jump to)
+            */
             (1, _, _, _) => {
                 let nnn = op & 0xFFF;
                 self.pc = nnn;
             }
 
-            // 2NNN
-            // CALL Instruction
-            // Used to enter a subroutine
-            // The current value is stored in the stack, and the jump to the adress provided by the last 3 digits is made
+            /*
+                2NNN
+                CALL Instruction
+                Used to enter a subroutine
+                The current value is stored in the stack, and the jump to the adress provided by the last 3 digits is made
+            */
             (2, _, _, _) => {
                 let nnn = op & 0xFFF;
                 self.push(self.pc);
                 self.pc = nnn;
             }
 
-            // 3XNN
-            // SKIP if Equal Instruction
-            // Conditional instruction
-            // Used to skip one instruction (2 bytes in PC) if the register V[d2] has the value designated by d3 and d4
+            /*
+                3XNN
+                SKIP if Equal Instruction
+                Conditional instruction
+                Used to skip one instruction (2 bytes in PC) if the register V[d2] has the value designated by d3 and d4
+            */
             (3, _, _, _) => {
                 let x = d2 as usize;
                 let nn = (op & 0xFF) as u8;
@@ -205,10 +218,12 @@ impl CPU {
                 }
             }
 
-            // 4XNN
-            // SKIP if Not Equal Instruction
-            // Conditional instruction
-            // Used to skip one instruction (2 bytes in PC) if the register V[d2] does not have the value equal designated by d3 and d4
+            /*
+                4XNN
+                SKIP if Not Equal Instruction
+                Conditional instruction
+                Used to skip one instruction (2 bytes in PC) if the register V[d2] does not have the value equal designated by d3 and d4
+            */
             (4, _, _, _) => {
                 let x = d2 as usize;
                 let nn = (op & 0xFF) as u8;
@@ -217,10 +232,12 @@ impl CPU {
                 }
             }
 
-            // 5XY0
-            // SKIP if Registers are Equal Instruction
-            // Conditional instruction
-            // Used to skip one instruction (2 bytes in PC) if register V[d2] == register V[d3]
+            /*
+                5XY0
+                SKIP if Registers are Equal Instruction
+                Conditional instruction
+                Used to skip one instruction (2 bytes in PC) if register V[d2] == register V[d3]
+            */
             (5, _, _, 0) => {
                 let x = d2 as usize;
                 let y = d3 as usize;
@@ -229,18 +246,22 @@ impl CPU {
                 }
             }
 
-            // 6XNN
-            // Set Register Instruction
-            // Set register V[d2] equal to the value desginated by d3 and d4
+            /*
+                6XNN
+                Set Register Instruction
+                Set register V[d2] equal to the value desginated by d3 and d4
+            */
             (6, _, _, _) => {
                 let x = d2 as usize;
                 let nn = (op & 0xFF) as u8;
                 self.v_reg[x] = nn;
             }
 
-            // 7XNN
-            // Increment Register Instruction
-            // Increment register V[d2] by the value desginated by d3 and d4
+            /*
+                7XNN
+                Increment Register Instruction
+                Increment register V[d2] by the value desginated by d3 and d4
+            */
             (7, _, _, _) => {
                 let x = d2 as usize;
                 let nn = (op & 0xFF) as u8;
@@ -249,28 +270,34 @@ impl CPU {
                 self.v_reg[x] = self.v_reg[x].wrapping_add(nn);
             }
 
-            // 8XY0
-            // Set Register Instruction
-            // Set register V[d2] = register V[d3]
+            /*
+                8XY0
+                Set Register Instruction
+                Set register V[d2] = register V[d3]
+            */
             (8, _, _, 0) => {
                 let x = d2 as usize;
                 let y = d3 as usize;
                 self.v_reg[x] = self.v_reg[y];
             }
 
-            // 8XY1, 8XY2, 8XY3
-            // Bitwise OR
-            // Set V[d2] = V[d2] | V[d3]
+            /*
+                8XY1, 8XY2, 8XY3
+                Bitwise OR
+                Set V[d2] = V[d2] | V[d3]
+            */
             (8, _, _, 1) | (8, _, _, 2) | (8, _, _, 3) => {
                 let x = d2 as usize;
                 let y = d3 as usize;
                 self.v_reg[x] |= self.v_reg[y];
             }
 
-            // 8XY4
-            // Add Registers with Overflow Instruction
-            // Sets V[d2] = V[d2] + V[d3]
-            // The last register (V[15]) is used the flag bit, while the others are used as general purpose registers
+            /*
+                8XY4
+                Add Registers with Overflow Instruction
+                Sets V[d2] = V[d2] + V[d3]
+                The last register (V[15]) is used the flag bit, while the others are used as general purpose registers
+            */
             (8, _, _, 4) => {
                 let x = d2 as usize;
                 let y = d3 as usize;
@@ -282,10 +309,12 @@ impl CPU {
                 self.v_reg[0xF] = carry;
             }
 
-            // 8XY5
-            // Subtract Registers with Overflow Instruction
-            // Sets V[d2] = V[d2] - V[d3]
-            // The last register (V[15]) is used the flag bit, while the others are used as general purpose registers
+            /*
+                8XY5
+                Subtract Registers with Overflow Instruction
+                Sets V[d2] = V[d2] - V[d3]
+                The last register (V[15]) is used the flag bit, while the others are used as general purpose registers
+            */
             (8, _, _, 5) => {
                 let x = d2 as usize;
                 let y = d3 as usize;
