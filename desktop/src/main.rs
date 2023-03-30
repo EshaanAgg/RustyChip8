@@ -18,8 +18,10 @@ const TICKS_PER_FRAME: usize = 10;
 // Main code
 fn main() {
     let args: Vec<_> = env::args().collect();
-    // Just accept 1 argument
-    // The actual path to the source file containing the code of the game
+    /*
+        Just accept 1 argument
+        The actual path to the source file containing the code of the game
+    */
     if args.len() != 2 {
         println!("Usage: cargo run path/to/game");
         return;
@@ -27,6 +29,7 @@ fn main() {
 
     // Create the emulator
     let mut chip8 = CPU::new();
+    print!("{}", &args[1]);
 
     // Try to open the file and then load it into the chip8's RAM
     let mut rom = File::open(&args[1]).expect("Unable to open file");
@@ -121,7 +124,20 @@ fn draw_screen(chip8: &CPU, canvas: &mut Canvas<Window>) {
     canvas.present();
 }
 
-// Converts a keypress on the actual device to a byte KEY for the emulator
+/*
+    Converts a keypress on the actual device to a byte KEY for the emulator
+
+    Keyboard                    Chip-8
+    +---+---+---+---+           +---+---+---+---+
+    | 1 | 2 | 3 | 4 |           | 1 | 2 | 3 | C |
+    +---+---+---+---+           +---+---+---+---+
+    | Q | W | E | R |           | 4 | 5 | 6 | D |
+    +---+---+---+---+     =>    +---+---+---+---+
+    | A | S | D | F |           | 7 | 8 | 9 | E |
+    +---+---+---+---+           +---+---+---+---+
+    | Z | X | C | V |           | A | 0 | B | F |
+    +---+---+---+---+           +---+---+---+---+
+*/
 fn key2btn(key: Keycode) -> Option<usize> {
     match key {
         Keycode::Num1 => Some(0x1),

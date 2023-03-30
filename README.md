@@ -2,6 +2,19 @@
 
 The `Hello World` of Emulation, made in your favourite memory-safe Rust.
 
+### Installation
+
+You need only `SDL2` package and `Cargo` to run the project!
+
+Run `sudo apt-get install libsdl2-dev` to install `SDL2` and [follow this guide](https://doc.rust-lang.org/cargo/getting-started/installation.html) to install Cargo!
+
+After the above setup, you can start playing the games with the following commands:
+
+```
+cd desktop
+cargo run ../roms/[GAME_NAME]
+```
+
 ### Chip 8 Specifications
 
 - A `64x32 monochrome display`, drawn to via sprites that are always `8 pixels wide` and `between 1 and 16 pixels tall`
