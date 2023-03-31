@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::random;
 
 // SCREEN SIZE CONSTANTS
 pub const SCREEN_WIDTH: usize = 64;
@@ -137,6 +137,7 @@ impl CPU {
         if self.st > 0 {
             if self.st == 1 {
                 // BEEP! Simulated by a print line statement
+                // TODO: Implement actual sound of a beep here
                 println!("BEEP!");
             }
             self.st -= 1;
@@ -313,7 +314,7 @@ impl CPU {
                 8XY5
                 Subtract Registers with Overflow Instruction
                 Sets V[d2] = V[d2] - V[d3]
-                The last register (V[15]) is used the flag bit, while the others are used as general purpose registers
+                The last register (V[15]) is used the flag bit
             */
             (8, _, _, 5) => {
                 let x = d2 as usize;
@@ -324,6 +325,94 @@ impl CPU {
 
                 self.v_reg[x] = diff;
                 self.v_reg[0xF] = borrow;
+            }
+
+            /*
+                8XY6
+                Right Shift in Register Instruction
+                Sets V[d2] = V[d2] >> 1
+                The last register (V[15]) is used the flag bit, which is used to store the dropped off bit
+            */
+            (8, _, _, 6) => {
+                let x = d2 as usize;
+                let lsb = self.v_reg[x] & 1;
+                self.v_reg[x] >>= 1;
+                self.v_reg[0xF] = lsb;
+            }
+
+            /*
+                8XY7
+                Subtract Registers with Overflow Instruction
+                Sets V[d2] = V[d3] - V[d2]
+                The last register (V[15]) is used the flag bit
+            */
+            (8, _, _, 7) => {
+                let x = d2 as usize;
+                let y = d3 as usize;
+
+                let (diff, borrow) = self.v_reg[y].overflowing_sub(self.v_reg[x]);
+                let borrow = if borrow { 0 } else { 1 };
+
+                self.v_reg[x] = diff;
+                self.v_reg[0xF] = borrow;
+            }
+
+            /*
+                8XYE
+                Right Shift in Register Instruction
+                Sets V[d2] = V[d2] >> 1
+                The last register (V[15]) is used the flag bit, which is used to store if there was an overflow
+            */
+            (8, _, _, 0xE) => {
+                let x = d2 as usize;
+                let msb = (self.v_reg[x] >> 7) & 1;
+                self.v_reg[x] <<= 1;
+                self.v_reg[0xF] = msb;
+            }
+
+            /*
+                9XYO
+                Skip If Not Equal Instruction
+                Skips the next instruction if register V[d2] != register V[d3]
+            */
+            (9, _, _, 0) => {
+                let x = d2 as usize;
+                let y = d3 as usize;
+                if self.v_reg[x] != self.v_reg[y] {
+                    self.pc += 2;
+                }
+            }
+
+            /*
+                ANNN
+                Set IR Instruction
+                Used to set the value of the Instruction Register === nnn, which will act as a memory pointer to RAM
+            */
+            (0xA, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.i_reg = nnn;
+            }
+
+            /*
+                BNNN
+                Increment Program Counter Instruction
+                Sets value of the program counter = Register V[0] + the value corresponding to d2,d3,d4 in the opcode
+            */
+            (0xB, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.pc = (self.v_reg[0] as u16) + nnn;
+            }
+
+            /*
+                CXNN
+                Set Register to Random Value Instrcution (with some bits unset)
+                Sets register V[X] = A random value & NN
+            */
+            (0xC, _, _, _) => {
+                let x = d2 as usize;
+                let nn = (op & 0xFF) as u8;
+                let rng: u8 = random();
+                self.v_reg[x] = rng & nn;
             }
 
             // Match all the left cases that have not been handled yet
