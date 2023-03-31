@@ -68,7 +68,7 @@ impl CPU {
             st: 0,
         };
 
-        // Copy the FONTSET into the RAM of the CPU
+        // Copy the FONTSET into the starting location of the RAM of the CPU
         new_cpu.ram[..FONTSET_SIZE].copy_from_slice(&FONTSET);
 
         new_cpu
@@ -413,6 +413,157 @@ impl CPU {
                 let nn = (op & 0xFF) as u8;
                 let rng: u8 = random();
                 self.v_reg[x] = rng & nn;
+            }
+
+            /*
+                DXYN
+                Draw Sprite Instruction
+            */
+            (0xD, _, _, _) => {
+                // Get the (x, y) coords for our sprite
+                let x_coord = self.v_reg[d2 as usize] as u16;
+                let y_coord = self.v_reg[d3 as usize] as u16;
+
+                // The last digit determines how many rows does our sprite have in its height
+                let num_rows = d4;
+
+                // Keep track if any pixels were flipped
+                let mut flipped = false;
+
+                // Iterate over each row of our sprite
+                for y_line in 0..num_rows {
+                    // Determine which memory address our row's data is stored
+                    let addr = self.i_reg + y_line as u16;
+                    let pixels = self.ram[addr as usize];
+                    // Iterate over each column in our row
+                    for x_line in 0..8 {
+                        // Use a mask to fetch current pixel's bit. Only flip if a 1
+                        if (pixels & (0b1000_0000 >> x_line)) != 0 {
+                            // Sprites should wrap around screen, so apply modulo
+                            let x = (x_coord + x_line) as usize % SCREEN_WIDTH;
+                            let y = (y_coord + y_line) as usize % SCREEN_HEIGHT;
+
+                            // Get our pixel's index for our 1D screen array
+                            let idx = x + SCREEN_WIDTH * y;
+                            // Check if we're about to flip the pixel and set
+                            flipped |= self.screen[idx];
+                            self.screen[idx] ^= true;
+                        }
+                    }
+                }
+
+                // Populate VF register
+                if flipped {
+                    self.v_reg[0xF] = 1;
+                } else {
+                    self.v_reg[0xF] = 0;
+                }
+            }
+
+            /*
+                EX9E
+                Skip if Key Pressed Instruction
+                Skips the next instruction if the Key stored in the V[X] register is pressed (true)
+            */
+            (0xE, _, 9, 0xE) => {
+                let x = d2 as usize;
+                let vx = self.v_reg[x];
+                let key = self.keys[vx as usize];
+                if key {
+                    self.pc += 2;
+                }
+            }
+
+            /*
+                EXA1
+                Skip if Key Released Instruction
+                Skips the next instruction if the Key stored in the V[X] register is not pressed (false)
+            */
+            (0xE, _, 0xA, 1) => {
+                let x = d2 as usize;
+                let vx = self.v_reg[x];
+                let key = self.keys[vx as usize];
+                if !key {
+                    self.pc += 2;
+                }
+            }
+
+            /*
+                FX07
+                Access Delay Timer Instruction
+                Sets the value of the delay timer in the V[X] register
+            */
+            (0xF, _, 0, 7) => {
+                let x = d2 as usize;
+                self.v_reg[x] = self.dt;
+            }
+
+            /*
+                FX0A
+                Wait for Key Press Instruction
+                This is a blocking instruction, that is the whole game will pause and wait for player to press a key.
+                Blocking occurs till something in our keys array is true.
+                Once a key is found, it is stored into VX.
+                If more than one key is currently being pressed, it takes the lowest indexed one.
+            */
+            (0xF, _, 0, 0xA) => {
+                let x = d2 as usize;
+                let mut pressed = false;
+                for i in 0..self.keys.len() {
+                    if self.keys[i] {
+                        self.v_reg[x] = i as u8;
+                        pressed = true;
+                        break;
+                    }
+                }
+
+                if !pressed {
+                    // Redo OP Code
+                    self.pc -= 2;
+                }
+            }
+
+            /*
+                FX15
+                Set Delay Timer Instruction
+                Used to set the value of the Delay Timer = Value of the register V[X]
+            */
+            (0xF, _, 1, 5) => {
+                let x = d2 as usize;
+                self.dt = self.v_reg[x];
+            }
+
+            /*
+                FX18
+                Set Sound Timer Instruction
+                Used to set the value of the Sound Timer = Value of the register V[X]
+            */
+            (0xF, _, 1, 8) => {
+                let x = d2 as usize;
+                self.st = self.v_reg[x];
+            }
+
+            /*
+                FX1E
+                Increment Instuction Register Instruction
+                Increases the value of IR by the value in register V[X]
+                If overflow occurs, the register rolls back to 0
+            */
+            (0xF, _, 1, 0xE) => {
+                let x = d2 as usize;
+                let vx = self.v_reg[x] as u16;
+                self.i_reg = self.i_reg.wrapping_add(vx);
+            }
+
+            /*
+                FX29
+                Set IR to Font Address Instruction
+                Takes in the number to print on screen (from 0 to 0xF), and store the RAM address of that sprite into the IR We are actually free to store those sprites anywhere we wanted, so long as we are consistent and point to Convenient to implement as we stored all of them at the beginning of RAM.
+            */
+            (0xF, _, 2, 9) => {
+                let x = d2 as usize;
+                let c = self.v_reg[x] as u16;
+                self.i_reg = c * 5;
             }
 
             // Match all the left cases that have not been handled yet
