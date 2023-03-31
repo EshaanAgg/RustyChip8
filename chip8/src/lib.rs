@@ -566,6 +566,53 @@ impl CPU {
                 self.i_reg = c * 5;
             }
 
+            /*
+                FX33
+                Store BCD Instruction
+                Set IR = BCD of V[X]
+            */
+            (0xF, _, 3, 3) => {
+                let x = d2 as usize;
+                let vx = self.v_reg[x] as f32;
+
+                // Fetch the hundreds digit by dividing by 100 and tossing the decimal
+                let hundreds = (vx / 100.0).floor() as u8;
+                // Fetch the tens digit by dividing by 10, tossing the ones digit and the decimal
+                let tens = ((vx / 10.0) % 10.0).floor() as u8;
+                // Fetch the ones digit by tossing the hundreds and the tens
+                let ones = (vx % 10.0) as u8;
+
+                self.ram[self.i_reg as usize] = hundreds;
+                self.ram[(self.i_reg + 1) as usize] = tens;
+                self.ram[(self.i_reg + 2) as usize] = ones;
+            }
+
+            /*
+                FX55
+                Store V register's into RAM Instrcution
+                Stores the value of all registers from V[0] to V[X] in RAM, starting from the adress pointed by IR
+            */
+            (0xF, _, 5, 5) => {
+                let x = d2 as usize;
+                let i = self.i_reg as usize;
+                for idx in 0..=x {
+                    self.ram[i + idx] = self.v_reg[idx];
+                }
+            }
+
+            /*
+                FX65
+                Load V register's from RAM Instrcution
+                Loads the value into all registers from V[0] to V[X] from RAM, starting from the adress pointed by IR
+            */
+            (0xF, _, 6, 5) => {
+                let x = d2 as usize;
+                let i = self.i_reg as usize;
+                for idx in 0..=x {
+                    self.v_reg[idx] = self.ram[i + idx];
+                }
+            }
+
             // Match all the left cases that have not been handled yet
             (_, _, _, _) => unimplemented!("Unimplemented OP Code: {}", op),
         }
