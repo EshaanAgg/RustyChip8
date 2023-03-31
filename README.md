@@ -36,3 +36,12 @@ The project has two main directories.
 
 1. `chip8`: This is a library package with holds all the code for the `CHIP8 Emulator`
 2. `desktop`: This is a binary application package which would be using the `chip8` emulator to run games!
+
+### Scopes of Improvement
+
+- [ ] Add better comments for all the OP Codes
+- [ ] Rename classes and variables to standard CPU names
+- [ ] Add more ROMS
+- [ ] Add WASM integration
+- [ ] Add tests for each of the OP Codes and methods
+- [ ] Add frontend to play the games
